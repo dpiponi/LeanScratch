@@ -1,5 +1,3 @@
--- The proof has a bug! I think I have an update coming...
-
 import tactic
 import data.int.basic
 import data.stream.init
@@ -53,7 +51,7 @@ def breakable (a : String)
               (prop : ℕ → ℕ → String → Prop) : Prop
               := ∃ (P : ℕ → Prop),
                  ∃ (n : ℕ),
-                 ∀ (i : ℕ), n < i → P i → ∃ (j : ℕ), i < j ∧ prop i j a ∧ P j
+                 P n ∧ ∀ (i : ℕ), n < i → P i → ∃ (j : ℕ), i < j ∧ prop i j a ∧ P j
 
 theorem kolmogorov : breakable a decent ∨ breakable a indecent :=
 begin
@@ -64,6 +62,8 @@ begin
   rw breakable,
   let P : ℕ → Prop := λ i, true,
   existsi [P, n],
+  split,
+  simp [P],
   intros i hj,
   simp [P],
   cases not_forall.mp (h1 i hj) with j h6,
@@ -77,6 +77,8 @@ begin
   existsi Q,
   cases not_forall.mp (forall_not_of_not_exists h 0) with n h11,
   existsi n,
+  split,
+  exact lemma2 h11,
   intros i hi hp,
   -- pick a j with prefix_decency
   cases not_forall.mp (forall_not_of_not_exists h i) with j h15,
