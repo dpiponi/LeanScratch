@@ -1,3 +1,6 @@
+-- Note: see tweet https://twitter.com/dwrensha/status/1475207151534710790?s=20
+-- This now contains the fix.
+
 import tactic
 import data.int.basic
 import data.nat.basic
