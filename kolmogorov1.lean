@@ -1,7 +1,6 @@
--- Buggy version but less buggy than before
-
 import tactic
 import data.int.basic
+import data.nat.basic
 import data.stream.init
 
 open classical
@@ -48,12 +47,21 @@ begin
   intro a,
   exact h,
 end
+#check nat.lt_succ_iff
+
+lemma xxx : ∀ (n : ℕ), n < n.succ := 
+begin
+  intro n,
+  apply nat.lt_succ_iff.mpr,
+  trivial,
+end
 
 def breakable (a : String)
               (prop : ℕ → ℕ → String → Prop) : Prop
               := ∃ (P : ℕ → Prop),
                  ∃ (n : ℕ),
-                 P n ∧ ∀ (i : ℕ), n < i → P i → ∃ (j : ℕ), i < j ∧ prop i j a ∧ P j
+                 (∃ (i : ℕ), n < i ∧ P i) ∧
+                  ∀ (i : ℕ), n < i → P i → ∃ (j : ℕ), i < j ∧ prop i j a ∧ P j
 
 theorem kolmogorov : breakable a decent ∨ breakable a indecent :=
 begin
@@ -66,6 +74,8 @@ begin
   existsi [P, n],
   split,
   simp [P],
+  apply exists.intro,
+  apply xxx,
   intros i hj,
   simp [P],
   cases not_forall.mp (h1 i hj) with j h6,
@@ -79,8 +89,15 @@ begin
   existsi Q,
   cases not_forall.mp (forall_not_of_not_exists h 0) with n h11,
   existsi n,
+  cases not_forall.mp (forall_not_of_not_exists h n) with i m11,
   split,
-  exact lemma2 h11,
+  have m12 := lemma0 m11,
+  existsi i,
+  split,
+  exact m12,
+  have m13 := lemma2 m11,
+  exact m13,
+
   intros i hi hp,
   -- pick a j with prefix_decency
   cases not_forall.mp (forall_not_of_not_exists h i) with j h15,
