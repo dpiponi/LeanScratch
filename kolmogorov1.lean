@@ -1,3 +1,5 @@
+-- The proof has a bug! I think I have an update coming...
+
 import tactic
 import data.int.basic
 import data.stream.init
