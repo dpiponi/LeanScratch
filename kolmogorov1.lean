@@ -31,15 +31,13 @@ end
 
 lemma lemma1 {a : Prop} {b : Prop} : ¬ (a → b) → a ∧ ¬ b :=
 begin
+
   intro k,
   split,
-  
   exact lemma0 k,
-
   intro b,
   apply k,
-  intro a,
-  exact b,
+  tautology,
 end
 
 lemma lemma2 {a : Prop} {b : Prop} : ¬ (a → ¬b) → b :=
@@ -47,69 +45,66 @@ begin
   intro k,  
   by_contradiction,
   apply k,
-  intro a,
-  exact h,
+  tautology,
 end
 #check nat.lt_succ_iff
-
-lemma xxx : ∀ (n : ℕ), n < n.succ := 
-begin
-  intro n,
-  apply nat.lt_succ_iff.mpr,
-  trivial,
-end
 
 def breakable (a : String)
               (prop : ℕ → ℕ → String → Prop) : Prop
               := ∃ (P : ℕ → Prop),
                  ∃ (n : ℕ),
-                 (∃ (i : ℕ), n < i ∧ P i) ∧
-                  ∀ (i : ℕ), n < i → P i → ∃ (j : ℕ), i < j ∧ prop i j a ∧ P j
+                 (∃ (i : ℕ), (P i)) ∧
+                  ∀ (i : ℕ), (P i) → ∃ (j : ℕ), i < j ∧ prop i j a ∧ P j
 
 theorem kolmogorov : breakable a decent ∨ breakable a indecent :=
 begin
   by_cases h : ∃ (n : ℕ), ∀ (i : ℕ), n < i → ¬ prefix_decent i a,
+    cases h with n h1,
+    -- Suppose we have h
+      right,
+        unfold breakable,
+        let P : ℕ → Prop := λ i, n < i,
+        existsi [P, n],
+        
+          split,
+            apply exists.intro,
+              simp [P],
 
-  cases h with n h1,
-  right,
-  rw breakable,
-  let P : ℕ → Prop := λ i, true,
-  existsi [P, n],
-  split,
-  simp [P],
-  apply exists.intro,
-  apply xxx,
-  intros i hj,
-  simp [P],
-  cases not_forall.mp (h1 i hj) with j h6,
-  existsi j,
-  exact lemma1 h6,
+            apply nat.lt_succ_iff.mpr, trivial,
 
-  -- Suppose not...
-  left,
-  rw breakable,
-  let Q : ℕ → Prop := λ i, prefix_decent i a,
-  existsi Q,
-  cases not_forall.mp (forall_not_of_not_exists h 0) with n h11,
-  existsi n,
-  cases not_forall.mp (forall_not_of_not_exists h n) with i m11,
-  split,
-  have m12 := lemma0 m11,
-  existsi i,
-  split,
-  exact m12,
-  have m13 := lemma2 m11,
-  exact m13,
+            simp_intros i hj [P],
+              have h2 : n < i → ¬prefix_decent i a, from h1 i,
+              have hj' : n < i := hj,
+              cases not_forall.mp (h2 hj') with j h6,
+                have h7 : ¬decent i j a, from and.right (lemma1 h6),
+                have : i < j := lemma0 h6,
+                existsi j,
+                  split,
+                    assumption,
+                    split, assumption, linarith,
 
-  intros i hi hp,
-  -- pick a j with prefix_decency
-  cases not_forall.mp (forall_not_of_not_exists h i) with j h15,
-  have h17 := lemma2 h15,
-  existsi j,
-  split,
-  apply lemma0 h15,
-  split,
-  apply hp j,
-  exact lemma0 h15,
-  exact h17,
+      -- Suppose not...
+      left,
+        unfold breakable,
+        cases not_forall.mp (forall_not_of_not_exists h 0) with n h11,
+          let Q : ℕ → Prop := λ i, n < i ∧ prefix_decent i a,
+          existsi [Q, n],
+            cases not_forall.mp (forall_not_of_not_exists h n) with i m11,
+
+              split,
+                have : prefix_decent i a, from lemma2 m11,
+                existsi i, tautology,
+
+                intros i,
+                  intro hip,
+                    cases not_forall.mp (forall_not_of_not_exists h i) with j h15,
+                      existsi j,
+                        have : prefix_decent j a := lemma2 h15,
+                        have : i < j := lemma0 h15,
+
+                        split,
+                          assumption,                          
+                          split,
+                            tautology,
+                            split, linarith, assumption,
 end
