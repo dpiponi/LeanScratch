@@ -5,11 +5,13 @@ import tactic
 import data.int.basic
 import data.nat.basic
 import data.stream.init
+import tactic.binder_matching
 
 open classical
 
 -- https://github.com/leanprover-community/mathlib/blob/master/test/coinductive.lean
--- https://leanprover-community.github.io/mathlib_docs/data/stream/init.html
+-- https://leanprover-community.github.io/mathlib_docs/data/stream/init.
+-- https://leanprover-community.github.io/mathlib_docs/tactics.html
 
 constant alphabet : Type
 def String := ℕ → alphabet
@@ -24,30 +26,8 @@ def prefix_decent (i : ℕ) (a : String) : Prop :=
 
 lemma lemma0 {a : Prop} {b : Prop} : ¬ (a → b) → a :=
 begin
-  intro k,
-  by_contradiction,
-  exact k (false.elim ∘ h),
+  tautology!,
 end
-
-lemma lemma1 {a : Prop} {b : Prop} : ¬ (a → b) → a ∧ ¬ b :=
-begin
-
-  intro k,
-  split,
-  exact lemma0 k,
-  intro b,
-  apply k,
-  tautology,
-end
-
-lemma lemma2 {a : Prop} {b : Prop} : ¬ (a → ¬b) → b :=
-begin
-  intro k,  
-  by_contradiction,
-  apply k,
-  tautology,
-end
-#check nat.lt_succ_iff
 
 def breakable (a : String)
               (prop : ℕ → ℕ → String → Prop) : Prop
@@ -63,48 +43,44 @@ begin
     -- Suppose we have h
       right,
         unfold breakable,
-        let P : ℕ → Prop := λ i, n < i,
+        let P : ℕ → Prop, intro i, exact n < i,
         existsi [P, n],
-        
-          split,
-            apply exists.intro,
-              simp [P],
-
+          split, 
+            apply exists.intro, simp [P],
             apply nat.lt_succ_iff.mpr, trivial,
 
             simp_intros i hj [P],
-              have h2 : n < i → ¬prefix_decent i a, from h1 i,
-              have hj' : n < i := hj,
-              cases not_forall.mp (h2 hj') with j h6,
-                have h7 : ¬decent i j a, from and.right (lemma1 h6),
-                have : i < j := lemma0 h6,
+              have : n < i, finish,
+              have h1 : ∃ (x : ℕ), ¬(i < x → decent i x a),
+                apply not_forall.mp, tautology!,
+              cases h1 with j h6,
+                have : i < j, finish,
                 existsi j,
                   split,
                     assumption,
-                    split, assumption, linarith,
+                    split, tautology, linarith,
 
       -- Suppose not...
       left,
         unfold breakable,
-        cases not_forall.mp (forall_not_of_not_exists h 0) with n h11,
-          let Q : ℕ → Prop := λ i, n < i ∧ prefix_decent i a,
-          existsi [Q, n],
-            cases not_forall.mp (forall_not_of_not_exists h n) with i m11,
-
-              split,
-                have : prefix_decent i a, from lemma2 m11,
-                existsi i, tautology,
-
+          -- The property Q i says we can start a new decent word at position i
+          let Q : ℕ → Prop := λ i, 0 < i ∧ prefix_decent i a,
+          existsi [Q, 0],
+            -- We can start the ball rolling at i
+            have q : ∃ (i : ℕ), ¬(0 < i → ¬prefix_decent i a),
+              from not_forall.mp (forall_not_of_not_exists h 0),
+            cases q with i m11,
+              split, finish,
+                -- And now we need to keep the ball rolling
                 intros i,
-                  intro hip,
-                    cases not_forall.mp (forall_not_of_not_exists h i) with j h15,
-                      existsi j,
-                        have : prefix_decent j a := lemma2 h15,
-                        have : i < j := lemma0 h15,
-
+                  intro,
+                    have k : ∃ (j : ℕ), ¬(i < j → ¬prefix_decent j a),
+                      from not_forall.mp (forall_not_of_not_exists h i),
+                    cases k with j h15,
+                      existsi j, have : i < j, finish,
                         split,
                           assumption,                          
                           split,
                             tautology,
-                            split, linarith, assumption,
+                            finish
 end
