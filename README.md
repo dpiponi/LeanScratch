@@ -26,4 +26,7 @@ begin
 end
 ```
 
+
+
 Work in progress.
+Removed support for `a → b` because of the way `apply` treats `a → b → c`.
