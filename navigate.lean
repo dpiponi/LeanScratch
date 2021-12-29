@@ -1,7 +1,6 @@
 -- https://avigad.github.io/programming_in_lean/writing_tactics.html
 
---import tactic.find
-
+import tactic.find
 
 open tactic
 open tactic.interactive («have»)
@@ -10,24 +9,7 @@ open interactive.types (texpr location)
 open interactive (parse)
 open lean.parser (ident)
 
-
---#find (¬ _) → ¬ _
-
-meta def tactic.interactive.mul_left (q : parse texpr)
-  : parse location → tactic unit
-| (loc.ns [some h]) := do
-   e ← tactic.i_to_expr q,
-   H ← get_local h,
-   `(%%l = %%r) ← infer_type H,
-   «have» h ``(%%e * %%l = %%e * %%r) ``(congr_arg (λ x, %%e*x) %%H),
-   tactic.clear H
-| _ := tactic.fail "mul_left takes exactly one location"
-
-example (a b c : ℤ) (hyp : a = b) : c * a = c * b :=
-begin
-  mul_left c at hyp,
-  exact hyp
-end
+#find _ ∧ _ → _ ∧ _
 
 theorem descend_and_left {a b c : Prop}
   : (a → b) → a ∧ c → b ∧ c :=
@@ -75,6 +57,9 @@ begin
   apply h,
   apply and.right ca,
 end
+
+#check descend_or_right
+#check or.imp_right
 
 theorem descend_not {a b c : Prop}
   : (a → b) → ¬ b → ¬ a :=
@@ -135,13 +120,13 @@ with dozoom : name → expr → tactic name | q1 e :=
     match t with
     | `(%%u ∧ %%v) := do
         `(%%l ∧ %%r) ← tactic.target >>= whnf,
-        dobinary u l e ``descend_and_right
-      <|> dobinary v r e ``descend_and_left
+        dobinary u l e `and.imp_right -- ``descend_and_right
+      <|> dobinary v r e `and.imp_left -- ``descend_and_left
       <|> return q1
     | `(%%u ∨ %%v) := do
         `(%%l ∨  %%r) ← tactic.target >>= whnf,
-        dobinary u l e ``descend_or_right
-      <|> dobinary v r e ``descend_or_left
+        dobinary u l e `or.imp_right -- ``descend_or_right
+      <|> dobinary v r e `or.imp_left -- ``descend_or_left
       <|> return q1
     | `(%%u → %%v) := do
         `(%%l → %%r) ← tactic.target >>= whnf,
@@ -178,6 +163,22 @@ end
 
 example (a b c : Prop) (hyp : a → b) :
   a ∨ c → b ∨ c :=
+begin
+  intro hac,
+  zoom z hac,
+  apply hyp, assumption,
+end
+
+example (a b c : Prop) (hyp : a → b) :
+  a ∧ c → b ∧ c :=
+begin
+  intro hac,
+  zoom z hac,
+  apply hyp, assumption,
+end
+
+example (a b c : Prop) (hyp : a → b) :
+  c ∧ a → c ∧ b :=
 begin
   intro hac,
   zoom z hac,
