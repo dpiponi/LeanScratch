@@ -9,105 +9,54 @@ open interactive.types (texpr location)
 open interactive (parse)
 open lean.parser (ident)
 
-#find _ ∧ _ → _ ∧ _
-
-theorem descend_and_left {a b c : Prop}
-  : (a → b) → a ∧ c → b ∧ c :=
-begin
-  intro h,
-  intro ac,
-  apply and.intro,
-  apply h,
-  apply and.left ac,
-  apply and.right ac,
-end
-
-theorem descend_or_left {a b c : Prop}
-  : (a → b) → a ∨ c → b ∨ c :=
-assume h,
-  assume ac,
-    or.elim ac
-      (assume ha, or.inl (h ha))
-      (assume hc, or.inr hc)
-
 theorem descend_imp_left {a b c : Prop}
-  : (a → b) → (b → c) → (a → c) :=
- assume f, assume g, g ∘ f
-
+  : (a → b) → (b → c) → (a → c) := assume f, assume g, g ∘ f
 theorem descend_imp_right {a b c : Prop}
-  : (a → b) → (c → a) → (c → b) :=
- assume f, assume g, f ∘ g
- --function.comp
+  : (a → b) → (c → a) → (c → b) := assume f, assume g, f ∘ g
 
-theorem descend_or_right {a b c : Prop}
-  : (a → b) → c ∨ a → c ∨ b :=
-assume h,
-  assume ac,
-    or.elim ac
-      (assume hc, or.inl hc)
-      (assume ha, or.inr (h ha))
-
-theorem descend_and_right {a b c : Prop}
-  : (a → b) → c ∧ a → c ∧ b :=
+/-
+example (a b f g : Prop) (hyp : b → a) :
+  (g → (f → b)) → (g → (f → a)) :=
 begin
-  intro h,
-  intro ca,
-  apply and.intro,
-  apply and.left ca,
-  apply h,
-  apply and.right ca,
-end
+  intro hac,
+  refine descend_imp_right _ hac,
+  intro hac2,
 
-#check descend_or_right
-#check or.imp_right
+  refine descend_imp_right _ hac2,
+  intro,
 
-theorem descend_not {a b c : Prop}
-  : (a → b) → ¬ b → ¬ a :=
-begin
-  intro h,
-  intro nb,
-  intro a,
-  exact nb (h a)
-end
 
-example (a b c d e f : Prop) (hyp : b → a)
-  : (a → c) → (b → c) :=
-begin
-  intro adc,
-  apply descend_imp_left,
-  swap,
-  exact adc,
-  apply hyp,  
+  
+  --assumption,
+  --revert,
+  sorry
 end
-
-example (a b c d e f : Prop) (hyp : a → b)
-  : (c → a) → (c → b) :=
-begin
-  intro adc,
-  apply descend_imp_right,
-  swap,
-  exact adc,
-  apply hyp,  
-end
+-/
 
 meta mutual def dobinary, dounary, dozoom
-with dobinary : expr → expr → expr → (name) → tactic name
+with dobinary : expr → expr → expr → name → tactic name
 | u l e thm :=
   unify u l >> (do
+    trace ("unified", u, l),
+    trace ("thm", thm),
+    trace "---",
+    trace_state,
+    trace "---",
     applyc thm,
-    swap,
-    exact e,
+    trace "===",
+    trace_state,
+    trace "===",
+     swap, exact e,
+    trace "ok",
     x <- mk_fresh_name, --get_unused_name "x",
     hx <- intro x,
     clear e,
     dozoom x hx)
 
-with dounary : expr → (name) → tactic name
+with dounary : expr → name → tactic name
 | e thm :=
   do
-    applyc thm,
-    swap,
-    exact e,
+    applyc thm, swap, exact e,
     x <- mk_fresh_name, --get_unused_name "x",
     hx <- intro x,
     clear e,
@@ -117,30 +66,38 @@ with dozoom : name → expr → tactic name | q1 e :=
   do
     t <- infer_type e >>= whnf,
     g <- tactic.target >>= whnf,
+    trace ("doing a match on", t),
     match t with
     | `(%%u ∧ %%v) := do
+        trace "and",
         `(%%l ∧ %%r) ← tactic.target >>= whnf,
-        dobinary u l e `and.imp_right -- ``descend_and_right
-      <|> dobinary v r e `and.imp_left -- ``descend_and_left
+        dobinary u l e `and.imp_right
+      <|> dobinary v r e `and.imp_left
       <|> return q1
     | `(%%u ∨ %%v) := do
+        trace "or",
         `(%%l ∨  %%r) ← tactic.target >>= whnf,
-        dobinary u l e `or.imp_right -- ``descend_or_right
-      <|> dobinary v r e `or.imp_left -- ``descend_or_left
+        dobinary u l e `or.imp_right
+      <|> dobinary v r e `or.imp_left
       <|> return q1
     | `(%%u → %%v) := do
+        trace ("imp", u, v, "=", g),
         `(%%l → %%r) ← tactic.target >>= whnf,
-        dobinary u l e ``descend_imp_right
+        trace ("got", l, r),
+        trace ("gona unify", u, l),
+        dobinary u l e `function.comp
       <|> dobinary v r e ``descend_imp_left
       <|> return q1
-| `(¬ %%u) := do
+    | `(¬ %%u) := do
+        trace "not",
         `(¬ %%l) ← tactic.target >>= whnf,
-        dounary e `descend_not
+        dounary e `mt
       <|> return q1
     | _ := return q1
     end
 
-meta def tactic.interactive.zoom (q1 : parse ident) (q : parse texpr) : tactic unit := do
+meta def tactic.interactive.zoom (q1 : parse ident) (q : parse texpr)
+  : tactic unit := do
   e ← tactic.i_to_expr q,
   n <- dozoom q1 e,
   when (q1 ≠ n) $ rename n q1
@@ -199,4 +156,12 @@ begin
   intro hac,
   zoom z hac, -- does nothing
   cases hac with i p, existsi i, apply hyp, assumption
+end
+
+example (a b f g : Prop) (hyp : b → a) :
+  (g → (b → f)) → (g → (a → f)) :=
+begin
+  intro hac,
+  zoom z hac,
+  apply hyp, assumption,
 end
